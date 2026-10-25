@@ -3,6 +3,8 @@
 
 # pylint: disable=unsubscriptable-object
 
+import base64
+import gzip
 import io
 import os
 import sys
@@ -189,3 +191,42 @@ class TestFileLogExporterRoundTrip(unittest.TestCase):
         self._logger.emit(LogRecord(body="first message", severity_number=SeverityNumber.INFO))
         self._logger.emit(LogRecord(body="second message", severity_number=SeverityNumber.WARN))
         self.assertEqual(self._stream.getvalue(), self._expected())
+
+
+class TestFileLogExporterOutputOptions(unittest.TestCase):
+    def test_marker_prefix_tags_the_line(self):
+        stream = io.StringIO()
+        exporter = FileLogExporter(stream=stream, marker_prefix="OTEL_EXPORT")
+        exporter.export([_make_log_record("hello")])
+        line = stream.getvalue().splitlines()[0]
+        marker, payload = line.split(" ", 1)
+        self.assertEqual(marker, "OTEL_EXPORT_LOG")
+        data = LogsData.from_json(payload)
+        self.assertEqual(
+            data.resource_logs[0].scope_logs[0].log_records[0].body.string_value,  # type: ignore
+            "hello",
+        )
+
+    def test_base64_encodes_the_payload(self):
+        stream = io.StringIO()
+        exporter = FileLogExporter(stream=stream, base64=True)
+        exporter.export([_make_log_record("hello")])
+        line = stream.getvalue().splitlines()[0]
+        decoded = base64.b64decode(line).decode("utf-8")
+        data = LogsData.from_json(decoded)
+        self.assertEqual(
+            data.resource_logs[0].scope_logs[0].log_records[0].body.string_value,  # type: ignore
+            "hello",
+        )
+
+    def test_gzip_implies_base64(self):
+        stream = io.StringIO()
+        exporter = FileLogExporter(stream=stream, gzip=True)
+        exporter.export([_make_log_record("hello")])
+        line = stream.getvalue().splitlines()[0]
+        decoded = gzip.decompress(base64.b64decode(line)).decode("utf-8")
+        data = LogsData.from_json(decoded)
+        self.assertEqual(
+            data.resource_logs[0].scope_logs[0].log_records[0].body.string_value,  # type: ignore
+            "hello",
+        )

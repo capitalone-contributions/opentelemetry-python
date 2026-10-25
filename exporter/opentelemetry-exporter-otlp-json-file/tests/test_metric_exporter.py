@@ -3,6 +3,8 @@
 
 # pylint: disable=unsubscriptable-object
 
+import base64
+import gzip
 import io
 import os
 import sys
@@ -220,3 +222,33 @@ class TestFileMetricExporterRoundTrip(unittest.TestCase):
         self._meter.create_observable_gauge("obs.cpu.temp", callbacks=[lambda _: [Observation(55.5)]])
         self._provider.force_flush()
         self.assertEqual(self._stream.getvalue(), self._expected())
+
+
+class TestFileMetricExporterOutputOptions(unittest.TestCase):
+    def test_marker_prefix_tags_the_line(self):
+        stream = io.StringIO()
+        exporter = FileMetricExporter(stream=stream, marker_prefix="OTEL_EXPORT")
+        exporter.export(_make_metrics_data())
+        line = stream.getvalue().splitlines()[0]
+        marker, payload = line.split(" ", 1)
+        self.assertEqual(marker, "OTEL_EXPORT_METRIC")
+        data = OtlpMetricsData.from_json(payload)
+        self.assertEqual(data.resource_metrics[0].scope_metrics[0].metrics[0].name, "requests")
+
+    def test_base64_encodes_the_payload(self):
+        stream = io.StringIO()
+        exporter = FileMetricExporter(stream=stream, base64=True)
+        exporter.export(_make_metrics_data())
+        line = stream.getvalue().splitlines()[0]
+        decoded = base64.b64decode(line).decode("utf-8")
+        data = OtlpMetricsData.from_json(decoded)
+        self.assertEqual(data.resource_metrics[0].scope_metrics[0].metrics[0].name, "requests")
+
+    def test_gzip_implies_base64(self):
+        stream = io.StringIO()
+        exporter = FileMetricExporter(stream=stream, gzip=True)
+        exporter.export(_make_metrics_data())
+        line = stream.getvalue().splitlines()[0]
+        decoded = gzip.decompress(base64.b64decode(line)).decode("utf-8")
+        data = OtlpMetricsData.from_json(decoded)
+        self.assertEqual(data.resource_metrics[0].scope_metrics[0].metrics[0].name, "requests")

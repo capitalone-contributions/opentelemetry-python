@@ -3,6 +3,8 @@
 
 # pylint: disable=unsubscriptable-object
 
+import base64
+import gzip
 import io
 import os
 import sys
@@ -209,3 +211,62 @@ class TestFileSpanExporterRoundTrip(unittest.TestCase):
                 span.record_exception(exc)
                 span.set_status(StatusCode.ERROR, str(exc))
         self.assertEqual(self._stream.getvalue(), self._expected())
+
+
+class TestFileSpanExporterOutputOptions(unittest.TestCase):
+    def _finished_span(self):
+        in_memory = InMemorySpanExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(in_memory))
+        tracer = provider.get_tracer(__name__)
+        with tracer.start_as_current_span("my-span"):
+            pass
+        return in_memory.get_finished_spans()
+
+    def test_marker_prefix_tags_the_line(self):
+        stream = io.StringIO()
+        exporter = FileSpanExporter(stream=stream, marker_prefix="OTEL_EXPORT")
+        exporter.export(self._finished_span())
+        line = stream.getvalue().splitlines()[0]
+        marker, payload = line.split(" ", 1)
+        self.assertEqual(marker, "OTEL_EXPORT_TRACE")
+        data = TracesData.from_json(payload)
+        self.assertEqual(data.resource_spans[0].scope_spans[0].spans[0].name, "my-span")
+
+    def test_base64_encodes_the_payload(self):
+        stream = io.StringIO()
+        exporter = FileSpanExporter(stream=stream, base64=True)
+        exporter.export(self._finished_span())
+        line = stream.getvalue().splitlines()[0]
+        decoded = base64.b64decode(line).decode("utf-8")
+        data = TracesData.from_json(decoded)
+        self.assertEqual(data.resource_spans[0].scope_spans[0].spans[0].name, "my-span")
+
+    def test_gzip_implies_base64(self):
+        stream = io.StringIO()
+        exporter = FileSpanExporter(stream=stream, gzip=True)
+        exporter.export(self._finished_span())
+        line = stream.getvalue().splitlines()[0]
+        decoded = gzip.decompress(base64.b64decode(line)).decode("utf-8")
+        data = TracesData.from_json(decoded)
+        self.assertEqual(data.resource_spans[0].scope_spans[0].spans[0].name, "my-span")
+
+    def test_marker_prefix_and_gzip_combine(self):
+        stream = io.StringIO()
+        exporter = FileSpanExporter(stream=stream, marker_prefix="OTEL_EXPORT", gzip=True)
+        exporter.export(self._finished_span())
+        line = stream.getvalue().splitlines()[0]
+        marker, payload = line.split(" ", 1)
+        self.assertEqual(marker, "OTEL_EXPORT_TRACE")
+        decoded = gzip.decompress(base64.b64decode(payload)).decode("utf-8")
+        data = TracesData.from_json(decoded)
+        self.assertEqual(data.resource_spans[0].scope_spans[0].spans[0].name, "my-span")
+
+    def test_defaults_are_unchanged(self):
+        stream = io.StringIO()
+        exporter = FileSpanExporter(stream=stream)
+        exporter.export(self._finished_span())
+        line = stream.getvalue().splitlines()[0]
+        # No marker, no base64/gzip framing: plain compact JSON on the line.
+        data = TracesData.from_json(line)
+        self.assertEqual(data.resource_spans[0].scope_spans[0].spans[0].name, "my-span")

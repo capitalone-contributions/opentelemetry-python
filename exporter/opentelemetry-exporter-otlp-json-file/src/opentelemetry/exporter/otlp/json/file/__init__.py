@@ -51,6 +51,30 @@ Each exporter accepts a destination in one of three ways:
     with tracer.start_as_current_span("foo"):
         print("Hello world!")
 
+Output options
+--------------
+
+By default each exported batch is written as one compact OTLP JSON object per
+line (JSON Lines). The exporters accept optional keyword arguments to adjust the
+line format; each is opt-in and applied independently:
+
+- ``marker_prefix`` - prefix every line with ``{marker_prefix}_{SIGNAL} ``,
+  where ``SIGNAL`` is ``TRACE``, ``METRIC``, or ``LOG``. Useful for tagging
+  lines in a shared log stream. A prefix containing whitespace or control
+  characters is ignored (with a warning) to preserve the line framing.
+- ``base64`` - base64-encode the JSON payload.
+- ``gzip`` - gzip-compress the payload. Because the destination is a text
+  stream, gzip output is always base64-encoded, so enabling ``gzip`` implies
+  ``base64``.
+
+.. code:: python
+
+    exporter = FileSpanExporter(
+        "/var/log/otel/traces.jsonl",
+        marker_prefix="OTEL_EXPORT",
+        gzip=True,
+    )
+
 The metric exporter supports the following environment variables:
 
 - :envvar:`OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE`

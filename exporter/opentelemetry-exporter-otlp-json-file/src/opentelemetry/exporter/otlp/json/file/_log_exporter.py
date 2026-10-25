@@ -31,6 +31,10 @@ class FileLogExporter(LogRecordExporter):
     def __init__(
         self,
         path: str | os.PathLike[str],
+        *,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     @overload
@@ -38,11 +42,18 @@ class FileLogExporter(LogRecordExporter):
         self,
         *,
         stream: IO[str],
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
         self,
+        *,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     def __init__(
@@ -50,6 +61,9 @@ class FileLogExporter(LogRecordExporter):
         path: str | os.PathLike[str] | None = None,
         *,
         stream: IO[str] | None = None,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None:
         self._exporter: _FileExporter[Sequence[ReadableLogRecord]] = _FileExporter(
             encode=_encode_logs_to_dict,
@@ -57,6 +71,9 @@ class FileLogExporter(LogRecordExporter):
             logger=_logger,
             path=path,
             stream=stream,
+            marker_prefix=marker_prefix,
+            base64_encode=base64,
+            gzip_compress=gzip,
         )
 
     def export(self, batch: Sequence[ReadableLogRecord]) -> LogRecordExportResult:

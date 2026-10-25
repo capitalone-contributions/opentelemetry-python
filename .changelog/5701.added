@@ -1,0 +1,1 @@
+`opentelemetry-exporter-otlp-json-file`: add marker_prefix, base64, and gzip output options

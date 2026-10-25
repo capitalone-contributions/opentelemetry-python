@@ -26,6 +26,10 @@ class FileSpanExporter(SpanExporter):
     def __init__(
         self,
         path: str | os.PathLike[str],
+        *,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     @overload
@@ -33,11 +37,18 @@ class FileSpanExporter(SpanExporter):
         self,
         *,
         stream: IO[str],
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     @overload
     def __init__(
         self,
+        *,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     def __init__(
@@ -45,6 +56,9 @@ class FileSpanExporter(SpanExporter):
         path: str | os.PathLike[str] | None = None,
         *,
         stream: IO[str] | None = None,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None:
         self._exporter: _FileExporter[Sequence[ReadableSpan]] = _FileExporter(
             encode=_encode_spans_to_dict,
@@ -52,6 +66,9 @@ class FileSpanExporter(SpanExporter):
             logger=_logger,
             path=path,
             stream=stream,
+            marker_prefix=marker_prefix,
+            base64_encode=base64,
+            gzip_compress=gzip,
         )
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:

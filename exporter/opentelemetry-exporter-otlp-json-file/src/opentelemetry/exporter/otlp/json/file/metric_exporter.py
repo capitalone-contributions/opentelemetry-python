@@ -39,6 +39,9 @@ class FileMetricExporter(MetricExporter):
         *,
         preferred_temporality: dict[type, AggregationTemporality] | None = None,
         preferred_aggregation: dict[type, Aggregation] | None = None,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     @overload
@@ -48,6 +51,9 @@ class FileMetricExporter(MetricExporter):
         stream: IO[str],
         preferred_temporality: dict[type, AggregationTemporality] | None = None,
         preferred_aggregation: dict[type, Aggregation] | None = None,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     @overload
@@ -56,6 +62,9 @@ class FileMetricExporter(MetricExporter):
         *,
         preferred_temporality: dict[type, AggregationTemporality] | None = None,
         preferred_aggregation: dict[type, Aggregation] | None = None,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None: ...
 
     def __init__(
@@ -65,6 +74,9 @@ class FileMetricExporter(MetricExporter):
         stream: IO[str] | None = None,
         preferred_temporality: dict[type, AggregationTemporality] | None = None,
         preferred_aggregation: dict[type, Aggregation] | None = None,
+        marker_prefix: str | None = None,
+        base64: bool = False,
+        gzip: bool = False,
     ) -> None:
         MetricExporter.__init__(
             self,
@@ -77,6 +89,9 @@ class FileMetricExporter(MetricExporter):
             logger=_logger,
             path=path,
             stream=stream,
+            marker_prefix=marker_prefix,
+            base64_encode=base64,
+            gzip_compress=gzip,
         )
 
     def export(
